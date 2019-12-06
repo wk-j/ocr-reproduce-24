@@ -44,39 +44,42 @@ namespace B24 {
             }
         }
 
-        static async Task Main(string[] args) {
+        static async Task Go(FileInfo item, int index) {
+            var id = Guid.NewGuid().ToString("N");
 
+            Console.WriteLine($"[{index.ToString("D5")}] process {item.FullName}");
+
+            var uuid = Guid.NewGuid().ToString("N");
+            var request = new ProcessRequest {
+                Uuid = id,
+                Path = "/a/b/c",
+                Name = $"{id}-{item.Name}",
+                CreateBy = "example",
+                Languages = "English,Thai",
+                ProfileKey = "soc",
+                ConvertOnly = true,
+                OutputTypes = "Pdf",
+            };
+            var result = await OcrFile(request, item);
+
+            if (!result.Item1) {
+                Console.WriteLine(" > fail - {0} {1}", item.FullName, result.Item2);
+            } else {
+                Console.WriteLine(" > success - {0} {1}", item.FullName, result.Item2);
+            }
+        }
+
+        static async Task Main(string[] args) {
             var path = @"resource";
-            var index = 1;
+            var index = 0;
             while (true) {
                 var files = new DirectoryInfo(path).GetFiles("*.png").OrderBy(x => x.Length).ToList();
-                foreach (var item in files) {
+                index = index + files.Count;
+                var items = files.Select(async item => {
+                    await Go(item, index);
+                });
 
-                    var id = Guid.NewGuid().ToString("N");
-
-                    Console.WriteLine($"[{index.ToString("D5")}] process {item.FullName}");
-
-                    var uuid = Guid.NewGuid().ToString("N");
-                    var request = new ProcessRequest {
-                        Uuid = id,
-                        Path = "/a/b/c",
-                        Name = $"{id}-{item.Name}",
-                        CreateBy = "example",
-                        Languages = "English,Thai",
-                        ProfileKey = "soc",
-                        ConvertOnly = true,
-                        OutputTypes = "Pdf",
-                    };
-                    var result = await OcrFile(request, item);
-
-                    if (!result.Item1) {
-                        Console.WriteLine(" > fail - {0} {1}", item.FullName, result.Item2);
-                    } else {
-                        Console.WriteLine(" > success - {0} {1}", item.FullName, result.Item2);
-                    }
-
-                    index++;
-                }
+                Task.WaitAll(items.ToArray());
             }
         }
     }
